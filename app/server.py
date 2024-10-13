@@ -21,13 +21,16 @@ def get_connection_pool():
             connection_pool = mysql.connector.pooling.MySQLConnectionPool(**DB_CONFIG)
         except Error as e:
             logging.error(f"Error creating connection pool: {e}")
-            raise
+            return None
     return connection_pool
 
 
 def get_db_connection():
+    pool = get_connection_pool()
+    if pool is None:
+        return None
     try:
-        return connection_pool.get_connection()
+        return pool.get_connection()
     except Error as e:
         logging.error(f"Error getting connection from pool: {e}")
         return None
@@ -60,7 +63,7 @@ def upload_csv(table_name):
                 return jsonify({"error": f"Unknown table name: {table_name}"}), 400
 
             connection = get_db_connection()
-            if not connection:
+            if connection is None:
                 return jsonify({"error": "Database connection failed"}), 500
 
             cursor = connection.cursor(prepared=True)
@@ -123,7 +126,7 @@ def upload_csv(table_name):
 def employees_hired_by_quarter():
     try:
         connection = get_db_connection()
-        if not connection:
+        if connection is None:
             return jsonify({"error": "Database connection failed"}), 500
 
         cursor = connection.cursor(dictionary=True)
@@ -167,7 +170,7 @@ def employees_hired_by_quarter():
 def departments_above_mean_hiring():
     try:
         connection = get_db_connection()
-        if not connection:
+        if connection is None:
             return jsonify({"error": "Database connection failed"}), 500
 
         cursor = connection.cursor(dictionary=True)

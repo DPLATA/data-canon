@@ -87,7 +87,7 @@ class TestServer(unittest.TestCase):
 
     @patch('app.server.get_connection_pool')
     def test_database_connection_error(self, mock_get_connection_pool):
-        mock_get_connection_pool.side_effect = mysql.connector.Error("Mocked database connection error")
+        mock_get_connection_pool.return_value = None
 
         response = self.app.get('/employees_hired_by_quarter')
 
