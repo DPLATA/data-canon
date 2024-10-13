@@ -12,6 +12,18 @@ app = Flask(__name__)
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+connection_pool = None
+
+def get_connection_pool():
+    global connection_pool
+    if connection_pool is None:
+        try:
+            connection_pool = mysql.connector.pooling.MySQLConnectionPool(**DB_CONFIG)
+        except Error as e:
+            logging.error(f"Error creating connection pool: {e}")
+            raise
+    return connection_pool
+
 
 def get_db_connection():
     try:
@@ -19,14 +31,6 @@ def get_db_connection():
     except Error as e:
         logging.error(f"Error getting connection from pool: {e}")
         return None
-
-
-# Create connection pool
-try:
-    connection_pool = mysql.connector.pooling.MySQLConnectionPool(**DB_CONFIG)
-except Error as e:
-    logging.error(f"Error creating connection pool: {e}")
-    raise
 
 
 @app.route('/upload/<table_name>', methods=['POST'])

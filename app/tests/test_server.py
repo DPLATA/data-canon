@@ -11,11 +11,13 @@ class TestServer(unittest.TestCase):
         self.app = app.test_client()
         self.app.testing = True
 
-    @patch('app.server.get_db_connection')
-    def test_upload_csv_success(self, mock_get_db_connection):
+    @patch('app.server.get_connection_pool')
+    def test_upload_csv_success(self, mock_get_connection_pool):
+        mock_pool = MagicMock()
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
-        mock_get_db_connection.return_value = mock_connection
+        mock_get_connection_pool.return_value = mock_pool
+        mock_pool.get_connection.return_value = mock_connection
         mock_connection.cursor.return_value = mock_cursor
 
         data = {'file': (BytesIO(b'id,department\n1,HR\n2,IT'), 'departments.csv')}
@@ -41,11 +43,13 @@ class TestServer(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json['error'], 'Invalid file format. Please upload a CSV file.')
 
-    @patch('app.server.get_db_connection')
-    def test_employees_hired_by_quarter(self, mock_get_db_connection):
+    @patch('app.server.get_connection_pool')
+    def test_employees_hired_by_quarter(self, mock_get_connection_pool):
+        mock_pool = MagicMock()
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
-        mock_get_db_connection.return_value = mock_connection
+        mock_get_connection_pool.return_value = mock_pool
+        mock_pool.get_connection.return_value = mock_connection
         mock_connection.cursor.return_value = mock_cursor
 
         mock_cursor.fetchall.return_value = [
@@ -60,11 +64,13 @@ class TestServer(unittest.TestCase):
         self.assertEqual(response.json[0]['department'], 'HR')
         self.assertEqual(response.json[1]['job'], 'Developer')
 
-    @patch('app.server.get_db_connection')
-    def test_departments_above_mean_hiring(self, mock_get_db_connection):
+    @patch('app.server.get_connection_pool')
+    def test_departments_above_mean_hiring(self, mock_get_connection_pool):
+        mock_pool = MagicMock()
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
-        mock_get_db_connection.return_value = mock_connection
+        mock_get_connection_pool.return_value = mock_pool
+        mock_pool.get_connection.return_value = mock_connection
         mock_connection.cursor.return_value = mock_cursor
 
         mock_cursor.fetchall.return_value = [
@@ -79,11 +85,15 @@ class TestServer(unittest.TestCase):
         self.assertEqual(response.json[0]['department'], 'IT')
         self.assertEqual(response.json[1]['hired'], 12)
 
-    @patch('app.server.get_db_connection')
-    def test_database_connection_error(self, mock_get_db_connection):
-        mock_get_db_connection.side_effect = mysql.connector.Error("Mocked database connection error")
+    @patch('app.server.get_connection_pool')
+    def test_database_connection_error(self, mock_get_connection_pool):
+        mock_get_connection_pool.side_effect = mysql.connector.Error("Mocked database connection error")
 
         response = self.app.get('/employees_hired_by_quarter')
 
         self.assertEqual(response.status_code, 500)
         self.assertIn('error', response.json)
+
+
+if __name__ == '__main__':
+    unittest.main()
