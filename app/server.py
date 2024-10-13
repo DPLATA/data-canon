@@ -7,18 +7,10 @@ import logging
 from app.config import DB_CONFIG
 from app.utils.validation import convert_datetime, validate_integer
 
-
 app = Flask(__name__)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Create connection pool
-try:
-    connection_pool = mysql.connector.pooling.MySQLConnectionPool(**DB_CONFIG)
-except Error as e:
-    logging.error(f"Error creating connection pool: {e}")
-    raise
 
 
 def get_db_connection():
@@ -27,6 +19,14 @@ def get_db_connection():
     except Error as e:
         logging.error(f"Error getting connection from pool: {e}")
         return None
+
+
+# Create connection pool
+try:
+    connection_pool = mysql.connector.pooling.MySQLConnectionPool(**DB_CONFIG)
+except Error as e:
+    logging.error(f"Error creating connection pool: {e}")
+    raise
 
 
 @app.route('/upload/<table_name>', methods=['POST'])
@@ -115,3 +115,99 @@ def upload_csv(table_name):
         return jsonify({"error": "Invalid file format. Please upload a CSV file."}), 400
 
 
+@app.route('/employees_hired_by_quarter', methods=['GET'])
+def employees_hired_by_quarter():
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        query = """
+            SELECT 
+                d.department,
+                j.job,
+                SUM(CASE WHEN QUARTER(e.hire_datetime) = 1 THEN 1 ELSE 0 END) AS Q1,
+                SUM(CASE WHEN QUARTER(e.hire_datetime) = 2 THEN 1 ELSE 0 END) AS Q2,
+                SUM(CASE WHEN QUARTER(e.hire_datetime) = 3 THEN 1 ELSE 0 END) AS Q3,
+                SUM(CASE WHEN QUARTER(e.hire_datetime) = 4 THEN 1 ELSE 0 END) AS Q4
+            FROM 
+                employees e
+            JOIN 
+                departments d ON e.department_id = d.id
+            JOIN 
+                jobs j ON e.job_id = j.id
+            WHERE 
+                YEAR(e.hire_datetime) = 2021
+            GROUP BY 
+                d.department, j.job
+            ORDER BY 
+                d.department, j.job
+            """
+
+        cursor.execute(query)
+        results = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        return jsonify(results), 200
+
+    except Error as e:
+        logging.error(f"Database error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/departments_above_mean_hiring', methods=['GET'])
+def departments_above_mean_hiring():
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        query = """
+            WITH department_hires AS (
+                SELECT 
+                    d.id,
+                    d.department,
+                    COUNT(*) as hired
+                FROM 
+                    employees e
+                JOIN 
+                    departments d ON e.department_id = d.id
+                WHERE 
+                    YEAR(e.hire_datetime) = 2021
+                GROUP BY 
+                    d.id, d.department
+            ),
+            mean_hires AS (
+                SELECT AVG(hired) as mean_hired
+                FROM department_hires
+            )
+            SELECT 
+                dh.id,
+                dh.department,
+                dh.hired
+            FROM 
+                department_hires dh,
+                mean_hires mh
+            WHERE 
+                dh.hired > mh.mean_hired
+            ORDER BY 
+                dh.hired DESC
+            """
+
+        cursor.execute(query)
+        results = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        return jsonify(results), 200
+
+    except Error as e:
+        logging.error(f"Database error: {e}")
+        return jsonify({"error": str(e)}), 500
