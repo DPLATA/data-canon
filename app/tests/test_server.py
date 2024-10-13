@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from io import BytesIO
 from app.server import app
+import mysql.connector
 
 
 class TestServer(unittest.TestCase):
@@ -78,6 +79,11 @@ class TestServer(unittest.TestCase):
         self.assertEqual(response.json[0]['department'], 'IT')
         self.assertEqual(response.json[1]['hired'], 12)
 
+    @patch('app.server.get_db_connection')
+    def test_database_connection_error(self, mock_get_db_connection):
+        mock_get_db_connection.side_effect = mysql.connector.Error("Mocked database connection error")
 
-if __name__ == '__main__':
-    unittest.main()
+        response = self.app.get('/employees_hired_by_quarter')
+
+        self.assertEqual(response.status_code, 500)
+        self.assertIn('error', response.json)
