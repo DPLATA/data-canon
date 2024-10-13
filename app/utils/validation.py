@@ -1,15 +1,17 @@
 # validation.py
-import re
+from datetime import datetime
+import logging
 
-def validate_table_name(table_name):
-    # Only allow alphanumeric characters and underscores
-    if not re.match(r'^\w+$', table_name):
-        raise ValueError("Invalid table name")
-    return table_name
+def convert_datetime(dt_string):
+    try:
+        dt = datetime.strptime(dt_string, "%Y-%m-%dT%H:%M:%SZ")
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        logging.error(f"Invalid datetime format: {dt_string}")
+        return None
 
-def validate_csv_data(rows):
-    # Add any specific validation logic for your CSV data
-    if not rows:
-        raise ValueError("CSV file is empty")
-    # Add more validation as needed
-    return rows
+def validate_integer(value):
+    try:
+        return int(value) if value else None
+    except ValueError:
+        return None
